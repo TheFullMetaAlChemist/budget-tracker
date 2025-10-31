@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pocket Budget — Single‑File</title>
+<style>
+  :root{
+    --bg:#0f1115;
+    --card:#171a21;
+    --muted:#8a90a6;
+    --text:#e8ecf1;
+    --accent:#6ae3ff;
+    --accent-2:#6affb0;
+    --warn:#ffb86b;
+    --danger:#ff6b6b;
+    --good:#7CFC00;
+    --shadow: 0 8px 24px rgba(0,0,0,.35);
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,Apple Color Emoji,Segoe UI Emoji;
+    background:linear-gradient(180deg,#0c0e13,#0f1115 30%);
+    color:var(--text);
+  }
+  header{
+    position:sticky;top:0;z-index:10;
+    background:rgba(15,17,21,.85);
+    backdrop-filter:saturate(150%) blur(8px);
+    border-bottom:1px solid #222836;
+  }
+  .wrap{max-width:1100px;margin:0 auto;padding:16px}
+  .row{display:flex;flex-wrap:wrap;gap:12px}
+  .grow{flex:1 1 0}
+  .center{display:flex;align-items:center;gap:10px}
+  .totals{
+    display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px
+  }
+  .pill{
+    background:var(--card);padding:12px 14px;border-radius:999px;
+    box-shadow:var(--shadow);border:1px solid #222836;white-space:nowrap
+  }
+  .btn{
+    background:#1f2432;border:1px solid #2e3446;color:var(--text);
+    padding:10px 14px;border-radius:10px;cursor:pointer
+  }
+  .btn.secondary{background:#141823}
+  .btn.ghost{background:transparent;border-color:#2b3142}
+  .btn.accent{border-color:#22424a;background:#0f2a33}
+  .btn.warn{border-color:#3b2a17;background:#281a0f}
+  .btn.danger{border-color:#3b1a1a;background:#2a0f0f}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  .mon-nav{gap:8px}
+  .mon-text{font-weight:700;letter-spacing:.3px}
+  main{padding:20px 0 40px}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
+  .tab-btn{padding:10px 12px;border-radius:999px;border:1px solid #293042;background:#131722;cursor:pointer}
+  .tab-btn.active{outline:2px solid #3a95ff;background:#0e1a2a}
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+  .card{
+    background:linear-gradient(180deg,#151923,#11151f);
+    border:1px solid #222836;border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:16px
+  }
+  .card h3{margin:0 0 8px;font-size:16px}
+  .muted{color:var(--muted)}
+  .kpi{font-size:26px;font-weight:800}
+  .progress{height:10px;background:#1a1f2b;border-radius:999px;overflow:hidden;border:1px solid #23293a}
+  .bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+  .bar.warn{background:linear-gradient(90deg,#ffd36b,#ff9f6b)}
+  .bar.danger{background:linear-gradient(90deg,#ff6b6b,#ff3b3b)}
+  .tag{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid #2b3142;background:#141a26;color:#b6c2ff}
+  .list{display:flex;flex-direction:column;gap:10px}
+  .item{
+    display:flex;justify-content:space-between;gap:12px;align-items:center;
+    padding:10px;border:1px solid #222836;border-radius:10px;background:#121620
+  }
+  input,select,textarea{
+    width:100%;padding:10px;border-radius:10px;border:1px solid #2b3142;background:#0f1320;color:var(--text);
+  }
+  label{font-size:12px;color:#a7b1c5}
+  form.grid{gap:10px}
+  .col-12{grid-column:span 12}
+  .col-6{grid-column:span 6}
+  .col-4{grid-column:span 4}
+  .col-3{grid-column:span 3}
+  .right{text-align:right}
+  .danger-text{color:var(--danger)}
+  .warn-text{color:var(--warn)}
+  .good-text{color:var(--good)}
+  .divider{height:1px;background:#222836;margin:10px 0}
+  .floating{
+    position:fixed;right:18px;bottom:18px;z-index:20;
+    width:56px;height:56px;border-radius:50%;display:grid;place-items:center;
+    background:#0e2a3a;border:1px solid #214456;box-shadow:var(--shadow);cursor:pointer;font-size:26px
+  }
+  .small{font-size:12px}
+  .badge{padding:2px 6px;border-radius:999px;border:1px solid #2b3142}
+  details{border:1px solid #222836;border-radius:12px;background:#121620;padding:8px}
+  details>summary{cursor:pointer;list-style:none}
+  details>summary::-webkit-details-marker{display:none}
+  .notice{padding:10px;border:1px dashed #3b4258;border-radius:12px;background:#111826}
+  .hidden{display:none}
+  @media (max-width:900px){
+    .totals{grid-template-columns:repeat(2,1fr)}
+    .col-6{grid-column:span 12}
+    .col-4{grid-column:span 12}
+    .col-3{grid-column:span 6}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap row center">
+    <div class="center mon-nav">
+      <button class="btn" id="prevMonth" aria-label="Previous Month">←</button>
+      <div class="pill mon-text" id="monthLabel">October 2025</div>
+      <button class="btn" id="nextMonth" aria-label="Next Month">→</button>
+    </div>
+    <div class="grow"></div>
+    <div class="totals">
+      <div class="pill"><div class="small muted">Total Budget</div><div class="kpi" id="kpiBudget">£0</div></div>
+      <div class="pill"><div class="small muted">Total Spent</div><div class="kpi" id="kpiSpent">£0</div></div>
+      <div class="pill"><div class="small muted">Left</div><div class="kpi" id="kpiLeft">£0</div></div>
+      <div class="pill"><div class="small muted">Savings Balance</div><div class="kpi" id="kpiSavings">£0</div></div>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="tabs" role="tablist">
+      <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+      <button class="tab-btn" data-tab="transactions">Transactions</button>
+      <button class="tab-btn" data-tab="bills">Bills</button>
+      <button class="tab-btn" data-tab="savings">Savings</button>
+      <button class="tab-btn" data-tab="settings">Settings</button>
+      <button class="tab-btn" data-tab="backup">Backup</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- DASHBOARD -->
+  <section id="tab-dashboard">
+    <div class="grid">
+      <div class="col-12">
+        <div id="alerts" class="notice hidden"></div>
+      </div>
+      <div class="col-12 card">
+        <h3>Categories</h3>
+        <div id="categoryCards" class="grid"></div>
+      </div>
+      <div class="col-6 card">
+        <h3>Upcoming Bills</h3>
+        <div id="upcomingBills" class="list"></div>
+      </div>
+      <div class="col-6 card">
+        <h3>This Month vs Last — By Category</h3>
+        <div id="miniReport" class="list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRANSACTIONS -->
+  <section id="tab-transactions" class="hidden">
+    <div class="grid">
+      <div class="col-12 card">
+        <h3>Quick Add</h3>
+        <form id="txForm" class="grid">
+          <div class="col-3">
+            <label>Date</label>
+            <input type="date" id="txDate">
+          </div>
+          <div class="col-3">
+            <label>Amount</label>
+            <input type="number" id="txAmount" step="0.01" placeholder="0.00">
+          </div>
+          <div class="col-3">
+            <label>Category</label>
+            <select id="txCategory"></select>
+          </div>
+          <div class="col-3">
+            <label>Who</label>
+            <select id="txWho">
+              <option>You</option>
+              <option>Wife</option>
+            </select>
+          </div>
+          <div class="col-3">
+            <label>Method</label>
+            <select id="txMethod">
+              <option>Card</option>
+              <option>Cash</option>
+              <option>Transfer</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label>Note</label>
+            <input type="text" id="txNote" placeholder="e.g., Aldi, lunch, petrol">
+          </div>
+          <div class="col-3 center" style="align-items:end;justify-content:flex-end">
+            <button class="btn accent" id="btnAddTx" type="submit">+ Add</button>
+          </div>
+        </form>
+      </div>
+      <div class="col-12 card">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h3>All Transactions</h3>
+          <div class="center">
+            <label class="small">Filter:</label>
+            <select id="filterWho">
+              <option value="All">All</option>
+              <option value="You">You</option>
+              <option value="Wife">Wife</option>
+            </select>
+          </div>
+        </div>
+        <div id="txList" class="list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BILLS -->
+  <section id="tab-bills" class="hidden">
+    <div class="grid">
+      <div class="col-12 card">
+        <h3>Add Recurring Bill / Subscription</h3>
+        <form id="billForm" class="grid">
+          <div class="col-4">
+            <label>Name</label>
+            <input id="billName" placeholder="Spotify, Council Tax">
+          </div>
+          <div class="col-2">
+            <label>Amount</label>
+            <input type="number" id="billAmount" step="0.01">
+          </div>
+          <div class="col-2">
+            <label>Due Day</label>
+            <input type="number" id="billDay" min="1" max="28" placeholder="1-28">
+          </div>
+          <div class="col-2">
+            <label>Category</label>
+            <select id="billCategory"></select>
+          </div>
+          <div class="col-2">
+            <label>Deduct</label>
+            <select id="billDeduct">
+              <option value="due">On Due Day</option>
+              <option value="start">At Month Start</option>
+            </select>
+          </div>
+          <div class="col-12 row" style="justify-content:flex-end">
+            <button class="btn accent" type="submit">+ Add Bill</button>
+          </div>
+        </form>
+      </div>
+      <div class="col-12 card">
+        <h3>All Recurring Bills</h3>
+        <div id="billList" class="list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SAVINGS -->
+  <section id="tab-savings" class="hidden">
+    <div class="grid">
+      <div class="col-12 card">
+        <h3>Add Savings Goal</h3>
+        <form id="saveForm" class="grid">
+          <div class="col-4">
+            <label>Name</label>
+            <input id="svName" placeholder="Emergency Fund">
+          </div>
+          <div class="col-3">
+            <label>Target</label>
+            <input type="number" id="svTarget" step="0.01">
+          </div>
+          <div class="col-3">
+            <label>Monthly Contribution</label>
+            <input type="number" id="svMonthly" step="0.01">
+          </div>
+          <div class="col-2">
+            <label>Current Balance</label>
+            <input type="number" id="svBalance" step="0.01" value="0">
+          </div>
+          <div class="col-12 row" style="justify-content:flex-end">
+            <button class="btn accent" type="submit">+ Add Goal</button>
+          </div>
+        </form>
+      </div>
+      <div class="col-12 card">
+        <h3>Your Goals</h3>
+        <div id="svList" class="list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="tab-settings" class="hidden">
+    <div class="grid">
+      <div class="col-12 card">
+        <h3>Categories & Budgets</h3>
+        <form id="catForm" class="grid">
+          <div class="col-4">
+            <label>Category Name</label>
+            <input id="catName" placeholder="Food">
+          </div>
+          <div class="col-3">
+            <label>Monthly Budget</label>
+            <input type="number" id="catBudget" step="0.01">
+          </div>
+          <div class="col-3">
+            <label>Rollover Leftovers?</label>
+            <select id="catRollover">
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+          <div class="col-2 row" style="align-items:end;justify-content:flex-end">
+            <button class="btn accent" type="submit">+ Add / Update</button>
+          </div>
+        </form>
+        <div class="divider"></div>
+        <div id="catList" class="list"></div>
+      </div>
+      <div class="col-6 card">
+        <h3>General</h3>
+        <div class="row">
+          <div class="col-6">
+            <label>Currency Symbol</label>
+            <input id="currency" value="£">
+          </div>
+          <div class="col-6">
+            <label>Read‑Only Mode</label>
+            <select id="readonly">
+              <option value="false">Off</option>
+              <option value="true">On</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 card">
+        <h3>Exports</h3>
+        <div class="row">
+          <button class="btn" id="exportCSV">Export Current Month CSV</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BACKUP -->
+  <section id="tab-backup" class="hidden">
+    <div class="grid">
+      <div class="col-6 card">
+        <h3>Backup</h3>
+        <p class="muted">Download a JSON file with all data.</p>
+        <button class="btn" id="btnBackup">Download Backup (.json)</button>
+      </div>
+      <div class="col-6 card">
+        <h3>Restore</h3>
+        <p class="muted">Import a JSON backup file.</p>
+        <input type="file" id="fileRestore" accept=".json">
+      </div>
+      <div class="col-12 notice">
+        Everything is stored locally in your browser via <b>localStorage</b>. Use Backup/Restore to sync across devices.
+      </div>
+    </div>
+  </section>
+</main>
+
+<button class="floating" id="quickAdd" title="Quick add transaction">＋</button>
+
+<script>
+(function(){
+  const $ = (q,ctx=document)=>ctx.querySelector(q);
+  const $$ = (q,ctx=document)=>Array.from(ctx.querySelectorAll(q));
+  const fmt = (n)=> (currency()+Number(n||0).toFixed(2));
+  const monthKey = (d)=> d.toISOString().slice(0,7);
+  const prettyMonth = (ym)=>{
+    const [y,m]=ym.split('-').map(Number);
+    const dt = new Date(y, m-1, 1);
+    return dt.toLocaleString(undefined,{month:'long', year:'numeric'});
+  };
+  const today = new Date();
+
+  // ---------- Storage ----------
+  const LS_KEY = 'pocket-budget-data-v1';
+  function load(){
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) try{ return JSON.parse(raw); } catch(e){}
+    // seed with sensible defaults
+    const ym = monthKey(today);
+    const data = {
+      settings:{ currency:'£', readonly:false },
+      months: {}
+    };
+    data.months[ym] = {
+      budgets: {
+        'Housing/Bills': {amount: 800, rollover:false},
+        'Food': {amount: 450, rollover:true},
+        'Transport': {amount: 150, rollover:false},
+        'Fun': {amount: 150, rollover:false},
+        'Health': {amount: 60, rollover:false},
+        'Misc': {amount: 100, rollover:false},
+        'Savings': {amount: 300, rollover:false}
+      },
+      recurrings:[
+        {id:id(), name:'Council Tax', amount:180, day:1, category:'Housing/Bills', deductAtStart:true},
+        {id:id(), name:'Spotify', amount:10.99, day:5, category:'Fun', deductAtStart:false}
+      ],
+      transactions:[],
+      savings:[
+        {id:id(), name:'Emergency Fund', target:3000, monthly:300, balance:600}
+      ],
+      rollovers:{} // computed at month change per category if enabled
+    };
+    save(data);
+    return data;
+  }
+  function save(d){ localStorage.setItem(LS_KEY, JSON.stringify(d)); }
+  let DATA = load();
+  let CURRENT = monthKey(today);
+
+  // Ensure month exists when navigating
+  function ensureMonth(ym){
+    if(!DATA.months[ym]){
+      // clone budgets from nearest previous month or defaults
+      const months = Object.keys(DATA.months).sort();
+      const last = months[months.length-1];
+      const base = last ? DATA.months[last] : {budgets:{},recurrings:[],transactions:[],savings:[]};
+      DATA.months[ym] = {
+        budgets: JSON.parse(JSON.stringify(base.budgets||{})),
+        recurrings: JSON.parse(JSON.stringify(base.recurrings||[])),
+        transactions: [],
+        savings: JSON.parse(JSON.stringify(base.savings||[])),
+        rollovers: computeRollovers(last, base.budgets||{})
+      };
+      save(DATA);
+    }
+  }
+  function computeRollovers(prevYm, prevBudgets){
+    // If previous month exists, compute leftover per category where rollover=true
+    if(!prevYm || !DATA.months[prevYm]) return {};
+    const prev = DATA.months[prevYm];
+    const left = {};
+    for(const [cat, cfg] of Object.entries(prevBudgets)){
+      if(cfg.rollover){
+        const spent = spentByCategory(prevYm, cat);
+        left[cat] = Math.max(0, (cfg.amount||0) - spent);
+      }
+    }
+    return left;
+  }
+
+  // ---------- Helpers ----------
+  function id(){ return Math.random().toString(36).slice(2,10); }
+  function currency(){ return DATA.settings.currency || '£'; }
+
+  function getMonth(ym){ ensureMonth(ym); return DATA.months[ym]; }
+  function categories(ym){
+    const b = getMonth(ym).budgets;
+    return Object.keys(b);
+  }
+  function recurringImpact(ym, cat){
+    // Include bills that are deductAtStart OR due date reached within ym
+    const m = getMonth(ym);
+    const [y,mo] = ym.split('-').map(Number);
+    const now = new Date();
+    let sum = 0;
+    for(const r of m.recurrings){
+      if (r.category !== cat) continue;
+      if (r.deductAtStart) { sum += Number(r.amount||0); continue; }
+      // due day passed?
+      const due = new Date(y, mo-1, Math.min(28, Number(r.day||1)));
+      const periodEnd = new Date(y, mo, 0); // last day of month
+      const todayInMonth = (now.getFullYear()===y && (now.getMonth()+1)===mo) ? now : periodEnd;
+      if (due <= todayInMonth) sum += Number(r.amount||0);
+    }
+    return sum;
+  }
+  function spentByCategory(ym, cat){
+    const m = getMonth(ym);
+    let sum = 0;
+    for(const t of m.transactions){
+      if (t.category===cat) sum += Number(t.amount||0);
+    }
+    sum += recurringImpact(ym, cat);
+    return sum;
+  }
+  function totals(ym){
+    const m = getMonth(ym);
+    let budget=0, spent=0, left=0, savingsBal=0;
+    for(const [cat,cfg] of Object.entries(m.budgets)){
+      const roll = (m.rollovers&&m.rollovers[cat]) || 0;
+      budget += Number(cfg.amount||0) + Number(roll||0);
+      const s = spentByCategory(ym, cat);
+      spent += s;
+      left += (Number(cfg.amount||0) + Number(roll||0) - s);
+    }
+    for(const s of m.savings||[]) savingsBal += Number(s.balance||0);
+    return {budget, spent, left, savingsBal};
+  }
+
+  function setMonthLabel(){
+    $('#monthLabel').textContent = prettyMonth(CURRENT);
+  }
+
+  // ---------- UI: Tabs ----------
+  function switchTab(name){
+    $$('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+    $$('main section').forEach(s=>s.classList.add('hidden'));
+    $('#tab-'+name).classList.remove('hidden');
+  }
+  $$('.tab-btn').forEach(b=>b.addEventListener('click', ()=>switchTab(b.dataset.tab)));
+
+  // ---------- UI: Dashboard ----------
+  function renderKpis(){
+    const t = totals(CURRENT);
+    $('#kpiBudget').textContent = fmt(t.budget);
+    $('#kpiSpent').textContent = fmt(t.spent);
+    $('#kpiLeft').textContent = fmt(Math.max(0,t.left));
+    $('#kpiSavings').textContent = fmt(t.savingsBal);
+  }
+  function renderCategoryCards(){
+    const m = getMonth(CURRENT);
+    const wrap = $('#categoryCards');
+    wrap.innerHTML = '';
+    // responsive: 3 cols desktop
+    wrap.style.display='grid';
+    wrap.style.gridTemplateColumns='repeat(12,1fr)';
+    wrap.style.gap='12px';
+    categories(CURRENT).forEach(cat=>{
+      const cfg = m.budgets[cat];
+      const roll = (m.rollovers&&m.rollovers[cat])||0;
+      const cap = Number(cfg.amount||0) + Number(roll||0);
+      const spent = spentByCategory(CURRENT, cat);
+      const pct = cap>0? Math.min(100, Math.round(100*spent/cap)) : 0;
+      const left = cap - spent;
+      const state = left < 0 ? 'danger' : (pct>=85 ? 'warn':'ok');
+      const col = document.createElement('div'); col.className='col-4';
+      col.innerHTML = `
+        <div class="card">
+          <div class="row" style="justify-content:space-between;align-items:center">
+            <h3>${cat}</h3>
+            <span class="tag">${cfg.rollover?'Rollover':''}</span>
+          </div>
+          <div class="row" style="gap:12px">
+            <div class="grow">
+              <div class="muted small">Budget</div>
+              <div class="kpi">${fmt(cap)}</div>
+            </div>
+            <div class="grow">
+              <div class="muted small">Spent</div>
+              <div class="kpi">${fmt(spent)}</div>
+            </div>
+            <div class="grow right">
+              <div class="muted small">Left</div>
+              <div class="kpi ${left<0?'danger-text': (pct>=85?'warn-text':'good-text')}">${fmt(left)}</div>
+            </div>
+          </div>
+          <div class="progress" title="${pct}% of budget used">
+            <div class="bar ${state}" style="width:${pct}%"></div>
+          </div>
+          <div class="row" style="margin-top:10px;gap:8px;align-items:center">
+            <button class="btn small" data-addcat="${cat}">+ Add Tx</button>
+            <span class="muted small">Recurring this month: <b>${fmt(recurringImpact(CURRENT, cat))}</b></span>
+          </div>
+        </div>`;
+      wrap.appendChild(col);
+    });
+    // wire quick add buttons
+    $$('[data-addcat]').forEach(btn=>btn.addEventListener('click',()=>{
+      switchTab('transactions');
+      $('#txCategory').value = btn.dataset.addcat;
+      $('#txAmount').focus();
+    }));
+  }
+  function renderUpcoming(){
+    const m = getMonth(CURRENT);
+    const box = $('#upcomingBills');
+    box.innerHTML='';
+    const [y,mo] = CURRENT.split('-').map(Number);
+    const now = new Date();
+    const todayInMonth = (now.getFullYear()===y && (now.getMonth()+1)===mo) ? now : new Date(y,mo-1,1);
+    const list = m.recurrings.map(r=>{
+      const due = new Date(y, mo-1, Math.min(28, Number(r.day||1)));
+      const days = Math.ceil((due - todayInMonth)/(1000*60*60*24));
+      return {...r, due, days};
+    }).sort((a,b)=>a.due-b.due);
+    for(const r of list){
+      const warn = r.days<=3 ? 'warn-text':'';
+      const overdue = r.days<0 ? 'danger-text':'';
+      const status = r.days<0 ? 'Overdue' : (r.days===0?'Today': r.days+' days');
+      const it = document.createElement('div'); it.className='item';
+      it.innerHTML = `
+        <div>
+          <div><b>${r.name}</b> <span class="muted">(${r.category})</span></div>
+          <div class="muted small">Due: ${r.due.toDateString().slice(0,10)} — <span class="${warn} ${overdue}">${status}</span></div>
+        </div>
+        <div><b>${fmt(r.amount)}</b></div>`;
+      box.appendChild(it);
+    }
+    $('#alerts').classList.toggle('hidden', list.filter(r=>r.days<=3).length===0);
+    if(list.filter(r=>r.days<=3).length){
+      $('#alerts').innerHTML = '⚠️ <b>Heads up:</b> You have bills due in the next 3 days.';
+    }
+  }
+  function renderMiniReport(){
+    const current = CURRENT;
+    const [y, m] = current.split('-').map(Number);
+    const last = new Date(y, m-2, 1); // previous month
+    const lastKey = last.toISOString().slice(0,7);
+    ensureMonth(lastKey);
+    const curCats = categories(current);
+    const box = $('#miniReport');
+    box.innerHTML='';
+    curCats.forEach(cat=>{
+      const c = spentByCategory(current, cat);
+      const l = spentByCategory(lastKey, cat);
+      const delta = c-l;
+      const tag = delta>0? `<span class="badge danger-text">+${fmt(delta)}</span>` :
+                  delta<0? `<span class="badge good-text">${fmt(delta)}</span>` :
+                           `<span class="badge">±0</span>`;
+      const it = document.createElement('div'); it.className='item';
+      it.innerHTML = `<div><b>${cat}</b></div>
+                      <div class="row center"><span class="muted small">Last</span><b>${fmt(l)}</b></div>
+                      <div class="row center"><span class="muted small">This</span><b>${fmt(c)}</b></div>
+                      <div>${tag}</div>`;
+      box.appendChild(it);
+    });
+  }
+
+  // ---------- UI: Transactions ----------
+  function seedTxForm(){
+    const m = getMonth(CURRENT);
+    const catSel = $('#txCategory'); catSel.innerHTML = '';
+    for(const cat of categories(CURRENT)){
+      const opt = document.createElement('option'); opt.textContent = cat; opt.value = cat;
+      catSel.appendChild(opt);
+    }
+    $('#txDate').valueAsDate = new Date();
+  }
+  function duplicateWarning(newTx){
+    // look at last 20 within 2 minutes same amount & note
+    const m = getMonth(CURRENT);
+    const last = m.transactions.slice(-20);
+    const nTime = new Date(newTx.date).getTime();
+    return last.some(t=>Math.abs(new Date(t.date).getTime()-nTime) < 2*60*1000 &&
+                         Number(t.amount)==Number(newTx.amount) &&
+                         (t.note||'').trim().toLowerCase()===(newTx.note||'').trim().toLowerCase());
+  }
+  function addTx(e){
+    e&&e.preventDefault();
+    if (DATA.settings.readonly) return alert('Read‑only mode is on.');
+    const tx = {
+      id: id(),
+      date: $('#txDate').value || new Date().toISOString().slice(0,10),
+      amount: Number($('#txAmount').value||0),
+      category: $('#txCategory').value,
+      who: $('#txWho').value,
+      method: $('#txMethod').value,
+      note: $('#txNote').value?.trim()
+    };
+    if (!tx.amount || tx.amount<=0 || !tx.category) return;
+    if (duplicateWarning(tx) && !confirm('Looks like a duplicate. Add anyway?')) return;
+    getMonth(CURRENT).transactions.push(tx);
+    save(DATA);
+    $('#txAmount').value=''; $('#txNote').value='';
+    renderAll();
+  }
+  $('#txForm').addEventListener('submit', addTx);
+  $('#quickAdd').addEventListener('click', ()=>{ switchTab('transactions'); $('#txAmount').focus(); });
+
+  function renderTxList(){
+    const m = getMonth(CURRENT);
+    const who = $('#filterWho').value || 'All';
+    const list = $('#txList'); list.innerHTML='';
+    const rows = m.transactions
+      .filter(t=> who==='All' ? true : t.who===who)
+      .slice().sort((a,b)=> new Date(b.date)-new Date(a.date));
+    if (!rows.length){ list.innerHTML = '<div class="muted">No transactions yet.</div>'; return; }
+    rows.forEach(t=>{
+      const it = document.createElement('div'); it.className='item';
+      it.innerHTML = `
+        <div>
+          <div><b>${t.note||t.category}</b> <span class="muted small">(${t.category})</span></div>
+          <div class="muted small">${t.date} • ${t.method} • <span class="badge">${t.who[0]}</span></div>
+        </div>
+        <div class="row" style="gap:8px;align-items:center">
+          <b>${fmt(t.amount)}</b>
+          <button class="btn ghost small" data-edit="${t.id}">Edit</button>
+          <button class="btn danger small" data-del="${t.id}">Delete</button>
+        </div>`;
+      list.appendChild(it);
+    });
+    // actions
+    $$('[data-del]').forEach(b=>b.addEventListener('click',()=>{
+      if (DATA.settings.readonly) return alert('Read‑only mode is on.');
+      const idd = b.dataset.del;
+      const m = getMonth(CURRENT);
+      const i = m.transactions.findIndex(x=>x.id===idd);
+      if (i>=0 && confirm('Delete this transaction?')){
+        m.transactions.splice(i,1); save(DATA); renderAll();
+      }
+    }));
+    $$('[data-edit]').forEach(b=>b.addEventListener('click',()=>{
+      if (DATA.settings.readonly) return alert('Read‑only mode is on.');
+      const t = getMonth(CURRENT).transactions.find(x=>x.id===b.dataset.edit);
+      const amt = prompt('Amount', t.amount); if(amt===null) return;
+      const note = prompt('Note', t.note||''); if(note===null) return;
+      t.amount = Number(amt)||t.amount; t.note = note;
+      save(DATA); renderAll();
+    }));
+  }
+  $('#filterWho').addEventListener('change', renderTxList);
+
+  // ---------- UI: Bills ----------
+  function seedBillForm(){
+    const catSel = $('#billCategory'); catSel.innerHTML='';
+    for(const c of categories(CURRENT)){
+      const o = document.createElement('option'); o.value=c; o.textContent=c; catSel.appendChild(o);
+    }
+  }
+  $('#billForm').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    if (DATA.settings.readonly) return alert('Read‑only mode is on.');
+    const b = {
+      id: id(),
+      name: $('#billName').value?.trim(),
+      amount: Number($('#billAmount').value||0),
+      day: Math.max(1, Math.min(28, Number($('#billDay').value||1))),
+      category: $('#billCategory').value,
+      deductAtStart: $('#billDeduct').value==='start'
+    };
+    if(!b.name || !b.amount || !b.category) return;
+    getMonth(CURRENT).recurrings.push(b); save(DATA); renderAll();
+    $('#billForm').reset();
+  });
+  function renderBills(){
+    const m = getMonth(CURRENT);
+    const list = $('#billList'); list.innerHTML='';
+    if (!m.recurrings.length){ list.innerHTML='<div class="muted">No recurring bills yet.</div>'; return; }
+    m.recurrings.slice().sort((a,b)=>a.day-b.day).forEach(r=>{
+      const it = document.createElement('div'); it.className='item';
+      it.innerHTML = `
+        <div>
+          <div><b>${r.name}</b> <span class="muted small">(${r.category})</span></div>
+          <div class="muted small">£${Number(r.amount).toFixed(2)} • Day ${r.day} • ${r.deductAtStart? 'Deduct at start':'Deduct on due day'}</div>
+        </div>
+        <div class="row" style="gap:8px">
+          <button class="btn ghost small" data-edit-bill="${r.id}">Edit</button>
+          <button class="btn danger small" data-del-bill="${r.id}">Delete</button>
+        </div>`;
+      list.appendChild(it);
+    });
+    $$('[data-del-bill]').forEach(b=>b.addEventListener('click',()=>{
+      if (DATA.settings.readonly) return alert('Read‑only mode is on.');
+      const idd=b.dataset.delBill;
+      const m = getMonth(CURRENT);
+      const i = m.recurrings.findIndex(x=>x.id===idd);
+      if(i>=0 && confirm('Delete this bill?')){ m.recurrings.splice(i,1); save(DATA); renderAll(); }
+    }));
+    $$('[data-edit-bill]').forEach(b=>b.addEventListener('click',()=>{
+      if (DATA.settings.readonly) return alert('Read‑only mode is on.');
+      const r = getMonth(CURRENT).recurrings.find(x=>x.id===b.dataset.editBill);
+      const name = prompt('Name', r.name); if(name===null) return;
+      const amount = prompt('Amount', r.amount); if(amount===null) return;
+      const day = prompt('Due day (1-28)', r.day); if(day===null) return;
+      r.name=name; r.amount=Number(amount)||r.amount; r.day=Math.max(1, Math.min(28, Number(day)||r.day));
+      save(DATA); renderAll();
+    }));
+  }
+
+  // ---------- UI: Savings ----------
+  $('#saveForm').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    if (DATA.settings.readonly) return alert('Read‑only mode is on.');
+    const s = {
+      id:id(),
+      name: $('#svName').value?.trim(),
+      target: Number($('#svTarget').value||0),
+      monthly: Number($('#svMonthly').value||0),
+      balance: Number($('#svBalance').value||0)
+    };
+    if(!s.name || !s.target) return;
+    getMonth(CURRENT).savings.push(s); save(DATA); renderAll();
+    $('#saveForm').reset();
+  });
+  function renderSavings(){
+    const list = $('#svList'); list.innerHTML='';
+    const m = getMonth(CURRENT);
+    if (!m.savings.length){ list.innerHTML='<div class="muted">No goals yet.</div>'; return; }
+    for(const s of m.savings){
+      const pct = s.target? Math.min(100, Math.round(100*s.balance/s.target)) : 0;
+      const left = Math.max(0, s.target - s.balance);
+      const eta = s.monthly>0 ? Math.ceil(left / s.monthly) : '—';
+      const it = document.createElement('div'); it.className='item'; it.style.flexDirection='column'; it.style.alignItems='stretch';
+      it.innerHTML = `
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <div><b>${s.name}</b> <span class="muted small">Target ${fmt(s.target)}</span></div>
+          <div class="row" style="gap:8px">
+            <button class="btn ghost small" data-save-add="${s.id}">+ £</button>
+            <button class="btn ghost small" data-save-edit="${s.id}">Edit</button>
+            <button class="btn danger small" data-save-del="${s.id}">Delete</button>
+          </div>
+        </div>
+        <div class="progress" style="margin:8px 0"><div class="bar" style="width:${pct}%"></div></div>
+        <div class="row" style="justify-content:space-between">
+          <div class="muted small">Balance: <b>${fmt(s.balance)}</b></div>
+          <div class="muted small">Left: <b>${fmt(left)}</b></div>
+          <div class="muted small">ETA: <b>${eta}</b> month(s)</div>
+        </div>`;
+      list.appendChild(it);
+    }
+    $$('[data-save-add]').forEach(b=>b.addEventListener('click',()=>{
+      if (DATA.settings.readonly) return alert('Read‑only mode is on.');
+      const s = getMonth(CURRENT).savings.find(x=>x.id===b.dataset.saveAdd);
+      const add = prompt('Add amount', 50); if(add===null) return;
+      s.balance += Number(add)||0; save(DATA); renderAll();
+    }));
+    $$('[data-save-edit]').forEach(b=>b.addEventListener('click',()=>{
+      if (DATA.settings.readonly) return alert('Read‑only mode is on.');
+      const s = getMonth(CURRENT).savings.find(x=>x.id===b.dataset.saveEdit);
+      const name = prompt('Name', s.name); if(name===null) return;
+      const target = prompt('Target', s.target); if(target===null) return;
+      const monthly = prompt('Monthly', s.monthly); if(monthly===null) return;
+      const bal = prompt('Balance', s.balance); if(bal===null) return;
+      s.name=name; s.target=Number(target)||s.target; s.monthly=Number(monthly)||s.monthly; s.balance=Number(bal)||s.balance;
+      save(DATA); renderAll();
+    }));
+    $$('[data-save-del]').forEach(b=>b.addEventListener('click',()=>{
+      if (DATA.settings.readonly) return alert('Read‑only mode is on.');
+      const m = getMonth(CURRENT);
+      const i = m.savings.findIndex(x=>x.id===b.dataset.saveDel);
+      if(i>=0 && confirm('Delete this goal?')){ m.savings.splice(i,1); save(DATA); renderAll(); }
+    }));
+  }
+
+  // ---------- UI: Settings (Categories) ----------
+  function renderCatList(){
+    const m = getMonth(CURRENT);
+    const list = $('#catList'); list.innerHTML='';
+    for(const [cat,cfg] of Object.entries(m.budgets)){
+      const it = document.createElement('div'); it.className='item';
+      it.innerHTML = `
+        <div><b>${cat}</b> <span class="muted small">Budget ${fmt(cfg.amount||0)} • ${cfg.rollover?'Rollover on':'Rollover off'}</span></div>
+        <div class="row" style="gap:8px">
+          <button class="btn ghost small" data-cat-edit="${cat}">Edit</button>
+          <button class="btn danger small" data-cat-del="${cat}">Delete</button>
+        </div>`;
+      list.appendChild(it);
+    }
+    $$('[data-cat-edit]').forEach(b=>b.addEventListener('click',()=>{
+      if (DATA.settings.readonly) return alert('Read‑only mode is on.');
+      const cat = b.dataset.catEdit;
+      const m = getMonth(CURRENT);
+      const cfg = m.budgets[cat];
+      $('#catName').value = cat;
+      $('#catBudget').value = cfg.amount||0;
+      $('#catRollover').value = String(!!cfg.rollover);
+      $('#catName').focus();
+    }));
+    $$('[data-cat-del]').forEach(b=>b.addEventListener('click',()=>{
+      if (DATA.settings.readonly) return alert('Read‑only mode is on.');
+      const cat = b.dataset.catDel;
+      const m = getMonth(CURRENT);
+      if (confirm(`Delete category "${cat}"? (Transactions remain but won't show budget)`)){
+        delete m.budgets[cat]; save(DATA); renderAll();
+      }
+    }));
+  }
+  $('#catForm').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    if (DATA.settings.readonly) return alert('Read‑only mode is on.');
+    const name = $('#catName').value?.trim(); if(!name) return;
+    const amt = Number($('#catBudget').value||0);
+    const roll = $('#catRollover').value==='true';
+    const m = getMonth(CURRENT);
+    m.budgets[name] = {amount:amt, rollover:roll};
+    save(DATA); renderAll(); e.target.reset();
+  });
+
+  // General settings
+  $('#currency').addEventListener('input', (e)=>{ DATA.settings.currency = e.target.value||'£'; save(DATA); renderAll(); });
+  $('#readonly').value = String(!!DATA.settings.readonly);
+  $('#readonly').addEventListener('change', (e)=>{ DATA.settings.readonly = (e.target.value==='true'); save(DATA); renderAll(); });
+
+  // ---------- Export CSV ----------
+  function exportCSV(){
+    const m = getMonth(CURRENT);
+    const rows = [['Date','Amount','Category','Who','Method','Note','Type']];
+    // recurrings as lines too (only those counted so far)
+    const [y,mo] = CURRENT.split('-').map(Number);
+    const now = new Date();
+    const periodEnd = new Date(y, mo, 0);
+    const todayInMonth = (now.getFullYear()===y && (now.getMonth()+1)===mo) ? now : periodEnd;
+    for(const r of m.recurrings){
+      const due = new Date(y,mo-1, Math.min(28, Number(r.day||1)));
+      const include = r.deductAtStart || due <= todayInMonth;
+      if(include){
+        rows.push([`${y}-${String(mo).padStart(2,'0')}-${String(Math.min(28,r.day)).padStart(2,'0')}`, Number(r.amount).toFixed(2), r.category, 'Auto', 'Recurring', r.name, 'Recurring']);
+      }
+    }
+    for(const t of m.transactions){
+      rows.push([t.date, Number(t.amount).toFixed(2), t.category, t.who, t.method, (t.note||'').replace(/,/g,';'), 'Transaction']);
+    }
+    const csv = rows.map(r=>r.join(',')).join('\n');
+    download(`${CURRENT}-budget.csv`, csv, 'text/csv');
+  }
+  $('#exportCSV').addEventListener('click', exportCSV);
+
+  // ---------- Backup / Restore ----------
+  function download(filename, content, type='application/json'){
+    const blob = new Blob([content], {type});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+  $('#btnBackup').addEventListener('click', ()=> download('pocket-budget-backup.json', JSON.stringify(DATA, null, 2)));
+  $('#fileRestore').addEventListener('change', (e)=>{
+    const file = e.target.files?.[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const obj = JSON.parse(reader.result);
+        if(!obj.months) throw new Error('Invalid backup');
+        DATA = obj;
+        // set CURRENT to most recent month in backup
+        const keys = Object.keys(DATA.months).sort();
+        CURRENT = keys[keys.length-1] || CURRENT;
+        save(DATA); renderAll();
+        alert('Restore complete.');
+      }catch(err){
+        alert('Restore failed: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  // ---------- Month Navigation ----------
+  $('#prevMonth').addEventListener('click', ()=>{
+    const [y,m] = CURRENT.split('-').map(Number);
+    const d = new Date(y, m-2, 1);
+    CURRENT = d.toISOString().slice(0,7);
+    ensureMonth(CURRENT);
+    renderAll();
+  });
+  $('#nextMonth').addEventListener('click', ()=>{
+    const [y,m] = CURRENT.split('-').map(Number);
+    const d = new Date(y, m, 1);
+    CURRENT = d.toISOString().slice(0,7);
+    ensureMonth(CURRENT);
+    renderAll();
+  });
+
+  // ---------- Render All ----------
+  function renderAll(){
+    setMonthLabel();
+    renderKpis();
+    renderCategoryCards();
+    renderUpcoming();
+    renderMiniReport();
+    seedTxForm();
+    renderTxList();
+    seedBillForm();
+    renderBills();
+    renderSavings();
+    renderCatList();
+    // seed general settings
+    $('#currency').value = currency();
+    $('#readonly').value = String(!!DATA.settings.readonly);
+  }
+
+  // Seed initial UI
+  ensureMonth(CURRENT);
+  renderAll();
+  switchTab('dashboard');
+})();
+</script>
+</body>
+</html>
